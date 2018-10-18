@@ -5,3 +5,4 @@
 mypy.ini
 .venv
 .mypy_cache
+.idea

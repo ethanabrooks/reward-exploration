@@ -1,9 +1,11 @@
 #! /usr/bin/env python
+import sys
+import time
+from typing import Dict, Iterable, Tuple
 
-from gym.envs.toy_text.discrete import DiscreteEnv
 import numpy as np
-from typing import Dict, Iterable, Tuple, List
 from gym import utils
+from gym.envs.toy_text.discrete import DiscreteEnv
 from six import StringIO
 
 
@@ -18,26 +20,26 @@ class Gridworld(DiscreteEnv):
                      [0, -1],
                      [-1, 0],
                  ]),
-                 action_strings: str = "➡️⬇️⬅️⬆️ ",
-                 wall_bump_reward: float = 0):
+                 action_strings: str = "➡⬇⬅⬆"):
+        self.action_strings = action_strings
         self.desc = _desc = np.array(
             [list(r) for r in desc])  # type: np.ndarray
         nrows, ncols = _desc.shape
 
         def transition_tuple(i: int, j: int) -> Tuple[float, int, float, bool]:
-            i = np.clip(i, 0, nrows - 1)
-            j = np.clip(j, 0, ncols - 1)
+            i = np.clip(i, 0, nrows - 1)  # type: int
+            j = np.clip(j, 0, ncols - 1)  # type: int
             letter = str(_desc[i, j])
             return (
                 1.,
-                self.encode(*(np.array([i, j]) + action)),
+                self.encode(i, j),
                 rewards.get(letter, 0),
-                terminal.get(letter, False),
+                terminal.get(letter, False)
             )
 
         P = {
             self.encode(i, j): {
-                a: [transition_tuple(i, j, action)]
+                a: [transition_tuple(*np.array([i, j]) + action)]
                 for a, action in enumerate(actions)
             }
             for i in range(nrows) for j in range(ncols)
@@ -50,21 +52,24 @@ class Gridworld(DiscreteEnv):
             isd=np.array(isd),
         )
 
-    def render(self):
+    def render(self, mode='human'):
         outfile = StringIO() if mode == 'ansi' else sys.stdout
-        out = [[c.decode('utf-8') for c in line] for line in self.desc.copy()]
+        out = self.desc.copy()
         i, j = self.decode(self.s)
-        out[i, j] = utils.colorize(out[i, k], 'yellow', highlight=True)
+        out[i, j] = utils.colorize(out[i, j], 'red')
+
+        print(*[''.join(r) for r in out], sep='\n')
+
         for row in out:
             outfile.write("".join(row) + "\n")
         if self.lastaction is not None:
-            outfile.write("  ({})\n".format(
-                self.action_strings[self.lastaction]))
+            outfile.write(f"(  {self.action_strings[self.lastaction]}  )\n")
         else:
             outfile.write("\n")
         # No need to return anything for human
         if mode != 'human':
             return outfile
+        out[i, j] = self.desc[i, j]
 
     def encode(self, i: int, j: int) -> int:
         nrow, ncol = self.desc.shape
@@ -82,9 +87,10 @@ if __name__ == '__main__':
     env = Gridworld(
         desc=['_t', '__'],
         rewards=dict(t=1),
-        terminal=dict(t=True),
+        terminal=dict(t=True)
     )
     env.reset()
     while True:
         env.render()
-        print('hello')
+        time.sleep(1)
+        env.step(env.action_space.sample())
