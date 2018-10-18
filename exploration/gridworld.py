@@ -20,7 +20,7 @@ class Gridworld(DiscreteEnv):
                      [0, -1],
                      [-1, 0],
                  ]),
-                 action_strings: str = "➡⬇⬅⬆"):
+                 action_strings: str = "▶▼◀▲"):
         self.action_strings = action_strings
         self.desc = _desc = np.array(
             [list(r) for r in desc])  # type: np.ndarray
@@ -54,22 +54,21 @@ class Gridworld(DiscreteEnv):
 
     def render(self, mode='human'):
         outfile = StringIO() if mode == 'ansi' else sys.stdout
-        out = self.desc.copy()
+        out = self.desc.copy().tolist()
         i, j = self.decode(self.s)
-        out[i, j] = utils.colorize(out[i, j], 'red')
 
-        print(*[''.join(r) for r in out], sep='\n')
+        out[i][j] = utils.colorize(out[i][j], 'blue', highlight=True)
 
         for row in out:
-            outfile.write("".join(row) + "\n")
+            print("".join(row))
         if self.lastaction is not None:
-            outfile.write(f"(  {self.action_strings[self.lastaction]}  )\n")
+            print(f"({self.action_strings[self.lastaction]})\n")
         else:
-            outfile.write("\n")
+            print("\n")
         # No need to return anything for human
         if mode != 'human':
             return outfile
-        out[i, j] = self.desc[i, j]
+        out[i][j] = self.desc[i, j]
 
     def encode(self, i: int, j: int) -> int:
         nrow, ncol = self.desc.shape
