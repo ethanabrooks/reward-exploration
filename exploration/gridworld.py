@@ -1,114 +1,90 @@
+#! /usr/bin/env python
+
+from gym.envs.toy_text.discrete import DiscreteEnv
 import numpy as np
-import sys
-from gym.envs.toy_text import discrete
+from typing import Dict, Iterable, Tuple, List
+from gym import utils
+from six import StringIO
 
-UP = 0
-RIGHT = 1
-DOWN = 2
-LEFT = 3
 
-class GridworldEnv(discrete.DiscreteEnv):
-    """
-    Grid World environment from Sutton's Reinforcement Learning book chapter 4.
-    You are an agent on an MxN grid and your goal is to reach the terminal
-    state at the top left or the bottom right corner.
+class Gridworld(DiscreteEnv):
+    def __init__(self,
+                 desc: Iterable[Iterable[str]],
+                 terminal: Dict[str, bool],
+                 rewards: Dict[str, float],
+                 actions=np.array([
+                     [0, 1],
+                     [1, 0],
+                     [0, -1],
+                     [-1, 0],
+                 ]),
+                 action_strings: str = "➡️⬇️⬅️⬆️ ",
+                 wall_bump_reward: float = 0):
+        self.desc = _desc = np.array(
+            [list(r) for r in desc])  # type: np.ndarray
+        nrows, ncols = _desc.shape
 
-    For example, a 4x4 grid looks as follows:
+        def transition_tuple(i: int, j: int) -> Tuple[float, int, float, bool]:
+            i = np.clip(i, 0, nrows - 1)
+            j = np.clip(j, 0, ncols - 1)
+            letter = str(_desc[i, j])
+            return (
+                1.,
+                self.encode(*(np.array([i, j]) + action)),
+                rewards.get(letter, 0),
+                terminal.get(letter, False),
+            )
 
-    T  o  o  o
-    o  x  o  o
-    o  o  o  o
-    o  o  o  T
+        P = {
+            self.encode(i, j): {
+                a: [transition_tuple(i, j, action)]
+                for a, action in enumerate(actions)
+            }
+            for i in range(nrows) for j in range(ncols)
+        }
+        isd = np.ones(_desc.size) / _desc.size
+        super().__init__(
+            nS=_desc.size,
+            nA=len(actions),
+            P=P,
+            isd=np.array(isd),
+        )
 
-    x is your position and T are the two terminal states.
-
-    You can take actions in each direction (UP=0, RIGHT=1, DOWN=2, LEFT=3).
-    Actions going off the edge leave you in your current state.
-    You receive a reward of -1 at each step until you reach a terminal state.
-    """
-
-    metadata = {'render.modes': ['human', 'ansi']}
-
-    def __init__(self, shape=[4,4]):
-        if not isinstance(shape, (list, tuple)) or not len(shape) == 2:
-            raise ValueError('shape argument must be a list/tuple of length 2')
-
-        self.shape = shape
-
-        nS = np.prod(shape)
-        nA = 4
-
-        MAX_Y = shape[0]
-        MAX_X = shape[1]
-
-        P = {}
-        grid = np.arange(nS).reshape(shape)
-        it = np.nditer(grid, flags=['multi_index'])
-
-        while not it.finished:
-            s = it.iterindex
-            y, x = it.multi_index
-
-            P[s] = {a : [] for a in range(nA)}
-
-            is_done = lambda s: s == 0 or s == (nS - 1)
-            reward = 0.0 if is_done(s) else -1.0
-
-            # We're stuck in a terminal state
-            if is_done(s):
-                P[s][UP] = [(1.0, s, reward, True)]
-                P[s][RIGHT] = [(1.0, s, reward, True)]
-                P[s][DOWN] = [(1.0, s, reward, True)]
-                P[s][LEFT] = [(1.0, s, reward, True)]
-            # Not a terminal state
-            else:
-                ns_up = s if y == 0 else s - MAX_X
-                ns_right = s if x == (MAX_X - 1) else s + 1
-                ns_down = s if y == (MAX_Y - 1) else s + MAX_X
-                ns_left = s if x == 0 else s - 1
-                P[s][UP] = [(1.0, ns_up, reward, is_done(ns_up))]
-                P[s][RIGHT] = [(1.0, ns_right, reward, is_done(ns_right))]
-                P[s][DOWN] = [(1.0, ns_down, reward, is_done(ns_down))]
-                P[s][LEFT] = [(1.0, ns_left, reward, is_done(ns_left))]
-
-            it.iternext()
-
-        # Initial state distribution is uniform
-        isd = np.ones(nS) / nS
-
-        # We expose the model of the environment for educational purposes
-        # This should not be used in any model-free learning algorithm
-        self.P = P
-
-        super(GridworldEnv, self).__init__(nS, nA, P, isd)
-
-    def render(self, mode='human', close=False):
-        if close:
-            return
-
+    def render(self):
         outfile = StringIO() if mode == 'ansi' else sys.stdout
+        out = [[c.decode('utf-8') for c in line] for line in self.desc.copy()]
+        i, j = self.decode(self.s)
+        out[i, j] = utils.colorize(out[i, k], 'yellow', highlight=True)
+        for row in out:
+            outfile.write("".join(row) + "\n")
+        if self.lastaction is not None:
+            outfile.write("  ({})\n".format(
+                self.action_strings[self.lastaction]))
+        else:
+            outfile.write("\n")
+        # No need to return anything for human
+        if mode != 'human':
+            return outfile
 
-        grid = np.arange(self.nS).reshape(self.shape)
-        it = np.nditer(grid, flags=['multi_index'])
-        while not it.finished:
-            s = it.iterindex
-            y, x = it.multi_index
+    def encode(self, i: int, j: int) -> int:
+        nrow, ncol = self.desc.shape
+        assert 0 <= i < nrow
+        assert 0 <= j < ncol
+        return i * ncol + j
 
-            if self.s == s:
-                output = " x "
-            elif s == 0 or s == self.nS - 1:
-                output = " T "
-            else:
-                output = " o "
+    def decode(self, s: int) -> Tuple[int, int]:
+        nrow, ncol = self.desc.shape
+        assert 0 <= s < nrow * ncol
+        return s // nrow, s % ncol
 
-            if x == 0:
-                output = output.lstrip() 
-            if x == self.shape[1] - 1:
-                output = output.rstrip()
 
-            outfile.write(output)
-
-            if x == self.shape[1] - 1:
-                outfile.write("\n")
-
-            it.iternext()
+if __name__ == '__main__':
+    env = Gridworld(
+        desc=['_t', '__'],
+        rewards=dict(t=1),
+        terminal=dict(t=True),
+    )
+    env.reset()
+    while True:
+        env.render()
+        print('hello')

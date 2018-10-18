@@ -1,1 +1,7 @@
 **/__pycache__
+.pyre
+.pyre_configuration
+.watchmanconfig
+mypy.ini
+.venv
+.mypy_cache
