@@ -1,0 +1,13 @@
+[MASTER]
+init-hook="
+    from pylint_venv import inithook
+    inithook()"
+
+persistent=yes
+
+[MESSAGES CONTROL]
+disable=missing-docstring,too-many-statements,too-many-locals,invalid-name,inconsistent-return-statements
+
+[BASIC]
+include-naming-hint=yes
+good-names=i,j,k,x,y,z,p,X,R,D,Q,P,Y
