@@ -1,12 +1,6 @@
 """
 the algorithm
 """
-
-# stdlib
-
-# third party
-
-# first party
 from exploration.gridworld import Gridworld
 from exploration.model_based import optimize_reward
 

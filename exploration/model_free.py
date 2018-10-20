@@ -20,8 +20,7 @@ def update_delQ(I, P, Q, delPi, delQ, pi):
 
 
 def update_delPi(I, delQ, pi, nS, nA):
-    dPi_dQ = (pi * (I - pi.transpose([0, 2, 1]))).reshape(
-        nS, nA, nA, 1)
+    dPi_dQ = (pi * (I - pi.transpose([0, 2, 1]))).reshape(nS, nA, nA, 1)
     return np.sum(dPi_dQ * delQ, axis=2)
 
 
@@ -68,44 +67,49 @@ def optimize_reward(visit_func,
         buffer.append((s1, s2, t))
 
         # s, a, s', g
-        D = update_D(D=(D.reshape(1, 1, env.nS, env.nS)),
-                     I=(I.reshape(env.nS, 1, 1, env.nS)),
-                     P=(P.reshape(env.nS, env.nA, env.nS, 1)),
-                     pi=(pi.reshape(env.nS, env.nA, 1, 1)))
+        D = update_D(
+            D=(D.reshape(1, 1, env.nS, env.nS)),
+            I=(I.reshape(env.nS, 1, 1, env.nS)),
+            P=(P.reshape(env.nS, env.nA, env.nS, 1)),
+            pi=(pi.reshape(env.nS, env.nA, 1, 1)))
         assert not np.any(np.isnan(D))
 
         # s, a_pi, a_Q
         # s, a_pi, a_Q, s_r
-        delPi = update_delPi(I=(np.eye(env.nA).reshape(1, env.nA, env.nA)),
-                             delQ=(delQ.reshape(env.nS, 1, env.nA, env.nS)),
-                             pi=(pi.reshape(env.nS, env.nA, 1)),
-                             nS=env.nS,
-                             nA=env.nA)
+        delPi = update_delPi(
+            I=(np.eye(env.nA).reshape(1, env.nA, env.nA)),
+            delQ=(delQ.reshape(env.nS, 1, env.nA, env.nS)),
+            pi=(pi.reshape(env.nS, env.nA, 1)),
+            nS=env.nS,
+            nA=env.nA)
         assert delPi.shape == (env.nS, env.nA, env.nS)
         assert not np.any(np.isnan(delPi))
 
         # s_Q, a, s', a', s_r
-        delQ = update_delQ(I=(I.reshape(env.nS, 1, 1, 1, env.nS)),
-                           P=(P.reshape(env.nS, env.nA, env.nS, 1, 1)),
-                           Q=(Q.reshape(1, 1, env.nS, env.nA, 1)),
-                           delPi=(delPi.reshape(1, 1, env.nS, env.nA, env.nS)),
-                           delQ=(delQ.reshape(1, 1, env.nS, env.nA, env.nS)),
-                           pi=(pi.reshape(1, 1, env.nS, env.nA, 1)))
+        delQ = update_delQ(
+            I=(I.reshape(env.nS, 1, 1, 1, env.nS)),
+            P=(P.reshape(env.nS, env.nA, env.nS, 1, 1)),
+            Q=(Q.reshape(1, 1, env.nS, env.nA, 1)),
+            delPi=(delPi.reshape(1, 1, env.nS, env.nA, env.nS)),
+            delQ=(delQ.reshape(1, 1, env.nS, env.nA, env.nS)),
+            pi=(pi.reshape(1, 1, env.nS, env.nA, 1)))
         assert not np.any(np.isnan(delQ))
 
         # s_D, a, s', g, s_r
-        delD = update_delD(D=(D.reshape(1, 1, env.nS, env.nS, 1).copy()),
-                           P=(P.reshape(env.nS, env.nA, env.nS, 1, 1).copy()),
-                           delD=(delD.reshape(1, 1, env.nS, env.nS, env.nS).copy()),
-                           delPi=(delPi.reshape(env.nS, env.nA, 1, 1, env.nS).copy()),
-                           pi=(pi.reshape(env.nS, env.nA, 1, 1, 1).copy()))
+        delD = update_delD(
+            D=(D.reshape(1, 1, env.nS, env.nS, 1).copy()),
+            P=(P.reshape(env.nS, env.nA, env.nS, 1, 1).copy()),
+            delD=(delD.reshape(1, 1, env.nS, env.nS, env.nS).copy()),
+            delPi=(delPi.reshape(env.nS, env.nA, 1, 1, env.nS).copy()),
+            pi=(pi.reshape(env.nS, env.nA, 1, 1, 1).copy()))
         assert not np.any(np.isnan(delD))
 
         # s, a, s', (a')
-        Q = update_Q(P=(P.reshape(env.nS, env.nA, env.nS)),
-                     Q=(Q.reshape(1, 1, env.nS, env.nA)),
-                     R=(R.reshape(env.nS, 1, 1)),
-                     gamma=gamma)
+        Q = update_Q(
+            P=(P.reshape(env.nS, env.nA, env.nS)),
+            Q=(Q.reshape(1, 1, env.nS, env.nA)),
+            R=(R.reshape(env.nS, 1, 1)),
+            gamma=gamma)
         assert not np.any(np.isnan(Q))
 
         # s0, g, s_r
